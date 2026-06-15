@@ -1,3 +1,4 @@
+from app.services.queue_service import QueueService
 from uuid import UUID
 
 from fastapi import (
@@ -28,11 +29,13 @@ async def upload_document(
 ):
     service = DocumentService(db)
 
-    return await service.upload_document(
+    document = await service.upload_document(
         app_id=app_id,
         file=file,
         user_id=current_user["id"],
     )
+    await QueueService.enqueue_document(str(document.id))
+    return document
 
 
 @router.get(

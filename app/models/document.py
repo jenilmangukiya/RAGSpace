@@ -1,6 +1,5 @@
-from email.policy import default
-from operator import index
 import uuid
+from sqlalchemy import Text
 
 from sqlalchemy import String, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
