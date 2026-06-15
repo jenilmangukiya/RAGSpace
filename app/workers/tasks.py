@@ -1,3 +1,8 @@
+from app.models import App
+from app.services.qdrant_service import QdrantService
+from app.services.embedding_service import EmbeddingService
+from app.services import chunk_service
+from app.services.chunk_service import ChunkService
 import logging
 
 from app.db.session import create_db_session
@@ -22,6 +27,8 @@ async def process_document(
         if not document:
             return
 
+        app = db.query(App).filter(App.id == document.app_id).first()
+
         document.status = "processing"
         db.commit()
 
@@ -29,7 +36,22 @@ async def process_document(
 
         extracted_text = PDFService.extract_text(local_pdf_path)
 
-        document.extracted_text = extracted_text
+        chunks = ChunkService.chunk_text(extracted_text)
+
+        vectors = []
+
+        for chunk in chunks:
+            vector = EmbeddingService.create_embedding(chunk)
+            vectors.append(vector)
+
+        QdrantService.upsert_chunks(
+            chunks=chunks,
+            vectors=vectors,
+            user_id=app.user_id,
+            app_id=app.id,
+            document_id=document.id,
+        )
+
         document.status = "processed"
 
         db.commit()
