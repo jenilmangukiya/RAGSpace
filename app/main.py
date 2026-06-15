@@ -1,7 +1,14 @@
+from app.routes import documents, apps
+
 from fastapi import FastAPI, Depends
 from app.core.auth import get_current_user
 
-app = FastAPI()
+app = FastAPI(
+    title="RAG-space API for LLM",
+    swagger_ui_parameters={
+        "persistAuthorization": True,
+    },
+)
 
 
 @app.get("/me")
@@ -12,3 +19,7 @@ async def me(user=Depends(get_current_user)):
 @app.get("/health")
 async def health():
     return {"health": "ok"}
+
+
+app.include_router(apps.router, prefix="/api/apps", tags=["Apps"])
+app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
