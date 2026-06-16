@@ -5,6 +5,8 @@ from app.services.qdrant_service import (
     QdrantService,
 )
 
+MIN_SCORE = 0.5
+
 
 class SearchService:
 
@@ -30,4 +32,5 @@ class SearchService:
                 "chunk_index": hit.payload["chunk_index"],
             }
             for hit in results
+            if hit.score >= MIN_SCORE
         ]

@@ -1,5 +1,5 @@
+from app.schemas.chat import ChatMessage
 from app.services.llm_service import LLMService
-from openai.resources.containers.files import content
 from app.services.search_service import SearchService
 
 
@@ -9,9 +9,14 @@ class ChatService:
         question: str,
         user_id: str,
         app_id: str,
+        history: list[ChatMessage],
     ):
+        query = question
+        if history:
+            query = LLMService.rewrite_query(question=question, history=history)
+
         search_result = SearchService.search(
-            query=question,
+            query=query,
             user_id=user_id,
             app_id=app_id,
         )
@@ -28,8 +33,7 @@ class ChatService:
         context = "\n\n".join(result["text"] for result in search_result[:5])
 
         answer = LLMService.generate_answer(
-            question=question,
-            context=context,
+            question=question, context=context, history=history
         )
 
         sources = [

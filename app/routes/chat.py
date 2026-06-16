@@ -21,6 +21,7 @@ def chat(
         question=payload.query,
         user_id=str(current_user["id"]),
         app_id=str(payload.app_id),
+        history=payload.history,
     )
 
     return result
