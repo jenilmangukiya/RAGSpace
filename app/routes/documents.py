@@ -39,10 +39,10 @@ async def upload_document(
 
 
 @router.get(
-    "/{app_id}",
+    "/list",
     response_model=list[DocumentResponse],
 )
-def get_documents(
+def get_list_of_documents(
     app_id: UUID,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -51,6 +51,21 @@ def get_documents(
 
     return service.get_documents(
         app_id=app_id,
+        user_id=current_user["id"],
+    )
+
+
+@router.get("/{document_id}")
+def get_document(
+    app_id: UUID,
+    document_id: UUID,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = DocumentService(db)
+    return service.get_document(
+        app_id=app_id,
+        document_id=document_id,
         user_id=current_user["id"],
     )
 

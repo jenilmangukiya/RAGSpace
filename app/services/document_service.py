@@ -73,6 +73,31 @@ class DocumentService:
             .all()
         )
 
+    def get_document(
+        self,
+        app_id: uuid.UUID,
+        document_id: uuid.UUID,
+        user_id: str,
+    ):
+        document = (
+            self.db.query(Document)
+            .join(App)
+            .filter(
+                Document.id == document_id,
+                App.user_id == user_id,
+                App.id == app_id,
+            )
+            .first()
+        )
+
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found",
+            )
+
+        return document
+
     def delete_document(
         self,
         document_id: uuid.UUID,

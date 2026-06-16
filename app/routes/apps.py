@@ -1,3 +1,4 @@
+from app.routes import documents
 from app.core.config import settings
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
