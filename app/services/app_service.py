@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -27,6 +28,19 @@ class AppService:
         )
 
         return apps
+
+    async def get_app(self, app_id: UUID, user_id: UUID) -> App:
+        app = (
+            self.db.query(App).filter(App.id == app_id, App.user_id == user_id).first()
+        )
+
+        if not app:
+            raise HTTPException(
+                status_code=404,
+                detail=f"App with id {app_id} not found",
+            )
+
+        return app
 
     async def delete_app(self, app_id: UUID, user_id: UUID):
         app = (

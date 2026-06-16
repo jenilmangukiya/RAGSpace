@@ -34,6 +34,16 @@ async def get_all_apps(
     return await service.get_apps(current_user["id"])
 
 
+@router.get("/{app_id}")
+async def get_app(
+    app_id: UUID,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = AppService(db)
+    return await service.get_app(app_id, current_user["id"])
+
+
 @router.delete("/{app_id}")
 async def delete_app(
     app_id: UUID,
