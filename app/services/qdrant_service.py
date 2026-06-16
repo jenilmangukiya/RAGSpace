@@ -1,6 +1,5 @@
 import uuid
 
-
 from qdrant_client.models import Filter, FieldCondition, MatchValue, PointStruct
 
 from app.integrations.qdrant import qdrant

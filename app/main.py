@@ -1,4 +1,4 @@
-from app.routes import documents, apps, search
+from app.routes import documents, apps, search, chat
 
 from fastapi import FastAPI, Depends
 from app.core.auth import get_current_user
@@ -24,3 +24,4 @@ async def health():
 app.include_router(apps.router, prefix="/api/apps", tags=["Apps"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
+app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
