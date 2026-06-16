@@ -1,6 +1,7 @@
 import uuid
 
-from qdrant_client.models import PointStruct
+
+from qdrant_client.models import Filter, FieldCondition, MatchValue, PointStruct
 
 from app.integrations.qdrant import qdrant
 
@@ -35,3 +36,30 @@ class QdrantService:
             collection_name="documents",
             points=points,
         )
+
+    @staticmethod
+    def search(
+        query_vector: list[float],
+        user_id: str,
+        app_id: str,
+        limit: int = 5,
+    ):
+        results = qdrant.query_points(
+            collection_name="documents",
+            query=query_vector,
+            limit=limit,
+            query_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="user_id",
+                        match=MatchValue(value=str(user_id)),
+                    ),
+                    FieldCondition(
+                        key="app_id",
+                        match=MatchValue(value=str(app_id)),
+                    ),
+                ]
+            ),
+        )
+
+        return results.points
