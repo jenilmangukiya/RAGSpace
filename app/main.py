@@ -1,6 +1,7 @@
 from app.routes import documents, apps, search, chat
 
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from app.core.auth import get_current_user
 
 app = FastAPI(
@@ -8,6 +9,15 @@ app = FastAPI(
     swagger_ui_parameters={
         "persistAuthorization": True,
     },
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
