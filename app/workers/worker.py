@@ -9,3 +9,6 @@ class WorkerSettings:
     ]
 
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
+
+    # ⏱️ Check Redis every 5 seconds instead of aggressively polling
+    poll_delay = 15.0
