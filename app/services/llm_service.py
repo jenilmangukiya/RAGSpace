@@ -5,6 +5,20 @@ from app.integrations.openai import OpenAIClient
 class LLMService:
     @staticmethod
     def generate_answer(question: str, context: str, history: list[ChatMessage]):
+        messages = LLMService.build_messages(
+            question=question, context=context, history=history
+        )
+
+        response = OpenAIClient.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0,
+        )
+
+        return response.choices[0].message.content
+
+    @staticmethod
+    def build_messages(question: str, context: str, history: list[ChatMessage]):
         messages = [
             {
                 "role": "system",
@@ -36,13 +50,21 @@ class LLMService:
             }
         )
 
-        response = OpenAIClient.chat.completions.create(
+        return messages
+
+    @staticmethod
+    def stream_answer(messages):
+        stream = OpenAIClient.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
+            stream=True,
             temperature=0,
         )
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
 
-        return response.choices[0].message.content
+            if delta:
+                yield delta
 
     @staticmethod
     def rewrite_query(
