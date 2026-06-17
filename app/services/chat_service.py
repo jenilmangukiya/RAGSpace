@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pymupdf.mupdf import pint_assign
 from alembic.command import history
@@ -54,7 +55,7 @@ class ChatService:
         }
 
     @staticmethod
-    def stream_chat(
+    async def stream_chat(
         question: str,
         history: list,
         user_id: str,
@@ -74,7 +75,8 @@ class ChatService:
             yield (
                 f"data: {json.dumps({'type': 'token', 'data': "I could not find any relevant information in the uploaded documents."})}\n\n"
             )
-            yield (f"data: {json.dumps({'type': 'done'})}\\n\\n")
+            await asyncio.sleep(0.01)
+            yield (f"data: {json.dumps({'type': 'done'})}\n\n")
             return
 
         context = "\n\n".join(result["text"] for result in search_result[:5])
