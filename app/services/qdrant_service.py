@@ -83,3 +83,21 @@ class QdrantService:
                 )
             ),
         )
+
+    @staticmethod
+    def delete_app_chunks(app_id: str):
+        qdrant.delete(
+            collection_name="documents",
+            points_selector=FilterSelector(
+                filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="app_id",
+                            match=MatchValue(
+                                value=app_id,
+                            ),
+                        ),
+                    ]
+                )
+            ),
+        )

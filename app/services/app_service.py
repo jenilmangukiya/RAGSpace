@@ -1,3 +1,6 @@
+from app.integrations.storage import supabase
+from app.services.qdrant_service import QdrantService
+from app.models import Document
 from fastapi import HTTPException
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -49,6 +52,31 @@ class AppService:
 
         if not app:
             return False
+
+        documents = (
+            self.db.query(Document)
+            .filter(
+                Document.app_id == app_id,
+            )
+            .all()
+        )
+
+        # Delete all vectors for the app
+        try:
+            QdrantService.delete_app_chunks(str(app_id))
+        except Exception as e:
+            print(f"Failed to delete app vectors: {e}")
+
+        # Delete files from storage
+        storage_paths = [
+            document.storage_path for document in documents if document.storage_path
+        ]
+
+        if storage_paths:
+            try:
+                supabase.storage.from_("documents").remove(storage_paths)
+            except Exception as e:
+                print(f"Failed to delete files: {e}")
 
         self.db.delete(app)
         self.db.commit()
