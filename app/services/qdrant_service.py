@@ -1,5 +1,6 @@
 import uuid
 
+from qdrant_client.http.models import FilterSelector
 from qdrant_client.models import Filter, FieldCondition, MatchValue, PointStruct
 
 from app.integrations.qdrant import qdrant
@@ -62,3 +63,23 @@ class QdrantService:
         )
 
         return results.points
+
+    @staticmethod
+    def delete_document_chunks(
+        document_id: str,
+    ):
+        qdrant.delete(
+            collection_name="documents",
+            points_selector=FilterSelector(
+                filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="document_id",
+                            match=MatchValue(
+                                value=document_id,
+                            ),
+                        ),
+                    ]
+                )
+            ),
+        )

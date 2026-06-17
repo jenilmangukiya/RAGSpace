@@ -1,3 +1,5 @@
+from app.workers.tasks import logger
+from app.services.qdrant_service import QdrantService
 import uuid
 
 from fastapi import UploadFile, HTTPException
@@ -118,6 +120,11 @@ class DocumentService:
                 status_code=404,
                 detail="Document not found",
             )
+
+        try:
+            QdrantService.delete_document_chunks(str(document.id))
+        except Exception:
+            logger.exception("Failed to delete qdrant chunks")
 
         supabase.storage.from_("documents").remove([document.storage_path])
 
