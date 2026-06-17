@@ -1,11 +1,10 @@
+from app.services.reranker_service import RerankerService
 from app.services.embedding_service import (
     EmbeddingService,
 )
 from app.services.qdrant_service import (
     QdrantService,
 )
-
-MIN_SCORE = 0.5
 
 
 class SearchService:
@@ -24,6 +23,13 @@ class SearchService:
             app_id=app_id,
         )
 
+        # Will recalculate scores and sort the order of it and give top 5
+        rerank_results = RerankerService.rerank(
+            query=query,
+            search_results=results,
+            top_k=5,
+        )
+
         return [
             {
                 "score": hit.score,
@@ -32,6 +38,5 @@ class SearchService:
                 "chunk_index": hit.payload["chunk_index"],
                 "page_number": hit.payload.get("page_number"),
             }
-            for hit in results
-            if hit.score >= MIN_SCORE
+            for hit in rerank_results
         ]

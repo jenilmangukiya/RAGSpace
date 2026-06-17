@@ -1,3 +1,4 @@
+from rich import highlighter
 import uuid
 
 from qdrant_client.http.models import FilterSelector
@@ -6,15 +7,12 @@ from qdrant_client.models import Filter, FieldCondition, MatchValue, PointStruct
 from app.integrations.qdrant import qdrant
 
 
+MIN_SCORE = 0.5
+
+
 class QdrantService:
     @staticmethod
-    def upsert_chunks(
-        chunks,
-        vectors,
-        user_id,
-        app_id,
-        document_id,
-    ):
+    def upsert_chunks(chunks, vectors, user_id, app_id, document_id, document_name):
         points = []
 
         for index, (chunk, vector) in enumerate(zip(chunks, vectors)):
@@ -29,6 +27,7 @@ class QdrantService:
                         "chunk_index": index + 1,
                         "text": chunk["chunk_content"],
                         "page_number": chunk["page_number"],
+                        "document_name": document_name,
                     },
                 )
             )
@@ -43,7 +42,7 @@ class QdrantService:
         query_vector: list[float],
         user_id: str,
         app_id: str,
-        limit: int = 5,
+        limit: int = 15,
     ):
         results = qdrant.query_points(
             collection_name="documents",
@@ -63,7 +62,8 @@ class QdrantService:
             ),
         )
 
-        return results.points
+        filtered = [point for point in results.points if point.score >= MIN_SCORE]
+        return filtered
 
     @staticmethod
     def delete_document_chunks(
