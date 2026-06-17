@@ -4,6 +4,7 @@ from app.models import Document
 from fastapi import HTTPException
 from uuid import UUID
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.models.app import App
 
@@ -24,13 +25,26 @@ class AppService:
 
     async def get_apps(self, user_id: UUID) -> list[App]:
         apps = (
-            self.db.query(App)
+            self.db.query(
+                App,
+                func.count(Document.id).label("document_count"),
+            )
+            .join(Document, Document.app_id == App.id, isouter=True)
             .filter(App.user_id == user_id)
             .order_by(App.created_at.desc())
+            .group_by(App.id)
             .all()
         )
 
-        return apps
+        return [
+            {
+                "id": app.id,
+                "name": app.name,
+                "created_at": app.created_at,
+                "document_count": document_count,
+            }
+            for app, document_count in apps
+        ]
 
     async def get_app(self, app_id: UUID, user_id: UUID) -> App:
         app = (
