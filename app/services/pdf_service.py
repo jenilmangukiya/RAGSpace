@@ -8,12 +8,17 @@ class PDFService:
 
         pages = []
 
-        for page in doc:
+        for page_number, page in enumerate(doc):
             text = page.get_text()
 
             if text:
-                pages.append(text)
+                pages.append(
+                    {
+                        "page_number": page_number + 1,
+                        "page_content": text,
+                    }
+                )
 
         doc.close()
 
-        return "\n".join(pages)
+        return pages

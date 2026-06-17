@@ -71,13 +71,11 @@ class ChatService:
         )
 
         if not search_result:
-            return {
-                "answer": (
-                    "I could not find any relevant "
-                    "information in the uploaded documents."
-                ),
-                "sources": [],
-            }
+            yield (
+                f"data: {json.dumps({'type': 'token', 'data': "I could not find any relevant information in the uploaded documents."})}\n\n"
+            )
+            yield (f"data: {json.dumps({'type': 'done'})}\\n\\n")
+            return
 
         context = "\n\n".join(result["text"] for result in search_result[:5])
 
@@ -91,6 +89,7 @@ class ChatService:
                 "document_id": result["document_id"],
                 "chunk_index": result["chunk_index"],
                 "score": result["score"],
+                "page_number": result["page_number"],
             }
             for result in search_result[:5]
         ]

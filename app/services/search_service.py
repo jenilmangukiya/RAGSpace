@@ -30,6 +30,7 @@ class SearchService:
                 "text": hit.payload["text"],
                 "document_id": hit.payload["document_id"],
                 "chunk_index": hit.payload["chunk_index"],
+                "page_number": hit.payload.get("page_number"),
             }
             for hit in results
             if hit.score >= MIN_SCORE

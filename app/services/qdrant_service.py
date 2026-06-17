@@ -26,8 +26,9 @@ class QdrantService:
                         "user_id": user_id,
                         "app_id": app_id,
                         "document_id": document_id,
-                        "chunk_index": index,
-                        "text": chunk,
+                        "chunk_index": index + 1,
+                        "text": chunk["chunk_content"],
+                        "page_number": chunk["page_number"],
                     },
                 )
             )

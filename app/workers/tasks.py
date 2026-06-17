@@ -36,16 +36,24 @@ async def process_document(
 
         extracted_text = PDFService.extract_text(local_pdf_path)
 
-        chunks = ChunkService.chunk_text(extracted_text)
+        all_chunks = []
+        for page in extracted_text:
+            chunks = ChunkService.chunk_text(page["page_content"])
+            for chunk in chunks:
+                all_chunks.append(
+                    {
+                        "page_number": page["page_number"],
+                        "chunk_content": chunk,
+                    }
+                )
 
         vectors = []
-
-        for chunk in chunks:
-            vector = EmbeddingService.create_embedding(chunk)
+        for chunk in all_chunks:
+            vector = EmbeddingService.create_embedding(chunk["chunk_content"])
             vectors.append(vector)
 
         QdrantService.upsert_chunks(
-            chunks=chunks,
+            chunks=all_chunks,
             vectors=vectors,
             user_id=app.user_id,
             app_id=app.id,
