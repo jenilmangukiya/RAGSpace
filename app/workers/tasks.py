@@ -58,7 +58,7 @@ async def process_document(
             user_id=app.user_id,
             app_id=app.id,
             document_id=document.id,
-            document_name=document.original_filename,
+            document_name=document.file_name,
         )
 
         document.status = "processed"
