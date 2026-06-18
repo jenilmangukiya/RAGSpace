@@ -1,3 +1,4 @@
+from app.db.dependencies import get_db
 from fastapi.responses import StreamingResponse
 
 from app.integrations.openai import OpenAIClient
@@ -17,12 +18,13 @@ router = APIRouter()
 def chat(
     payload: ChatRequest,
     current_user=Depends(get_current_user),
+    db=Depends(get_db),
 ):
-    result = ChatService.chat(
+    result = ChatService(db=db).chat(
         question=payload.query,
         user_id=str(current_user["id"]),
         app_id=str(payload.app_id),
-        history=payload.history,
+        conversation_id=str(payload.conversation_id),
     )
 
     return result
@@ -32,13 +34,14 @@ def chat(
 def stream_chat(
     payload: ChatRequest,
     current_user=Depends(get_current_user),
+    db=Depends(get_db),
 ):
 
-    generator = ChatService.stream_chat(
+    generator = ChatService(db=db).stream_chat(
         question=payload.query,
-        history=payload.history,
         user_id=current_user["id"],
         app_id=str(payload.app_id),
+        conversation_id=str(payload.conversation_id),
     )
 
     return StreamingResponse(

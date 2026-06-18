@@ -1,3 +1,6 @@
+from app.services.conversation_service import ConversationService
+from sqlalchemy.orm import Session
+from app.services import conversation_service
 import asyncio
 import json
 from pymupdf.mupdf import pint_assign
@@ -8,13 +11,26 @@ from app.services.search_service import SearchService
 
 
 class ChatService:
-    @staticmethod
+    def __init__(self, db: Session):
+        self.db = db
+
     def chat(
+        self,
         question: str,
         user_id: str,
         app_id: str,
-        history: list[ChatMessage],
+        conversation_id: str,
     ):
+        conversation_service_instance = ConversationService(self.db)
+
+        # Get chat History from DB
+        db_history = conversation_service_instance.get_conversation_latest_history(
+            conversation_id, user_id
+        )
+        history = [
+            {"role": message.role, "content": message.content} for message in db_history
+        ]
+
         query = question
         if history:
             query = LLMService.rewrite_query(question=question, history=history)
@@ -26,11 +42,18 @@ class ChatService:
         )
 
         if not search_result:
+            error_message = (
+                "I could not find any relevant information in the uploaded documents."
+            )
+
+            conversation_service_instance.save_chat_exchange(
+                assistant_message=error_message,
+                conversation_id=conversation_id,
+                user_message=question,
+            )
+
             return {
-                "answer": (
-                    "I could not find any relevant "
-                    "information in the uploaded documents."
-                ),
+                "answer": error_message,
                 "sources": [],
             }
 
@@ -49,18 +72,34 @@ class ChatService:
             for result in search_result[:5]
         ]
 
+        conversation_service_instance.save_chat_exchange(
+            assistant_message=answer,
+            conversation_id=conversation_id,
+            user_message=question,
+        )
+
         return {
             "answer": answer,
             "sources": sources,
         }
 
-    @staticmethod
     async def stream_chat(
+        self,
         question: str,
-        history: list,
         user_id: str,
         app_id: str,
+        conversation_id: str,
     ):
+        conversation_service_instance = ConversationService(self.db)
+
+        # Get chat History from DB
+        db_history = conversation_service_instance.get_conversation_latest_history(
+            conversation_id, user_id
+        )
+        history = [
+            {"role": message.role, "content": message.content} for message in db_history
+        ]
+
         query = question
         if history:
             query = LLMService.rewrite_query(question=question, history=history)
@@ -72,9 +111,16 @@ class ChatService:
         )
 
         if not search_result:
-            yield (
-                f"data: {json.dumps({'type': 'token', 'data': "I could not find any relevant information in the uploaded documents."})}\n\n"
+            error_message = (
+                "I could not find any relevant information in the uploaded documents."
             )
+            conversation_service_instance.save_chat_exchange(
+                assistant_message=error_message,
+                conversation_id=conversation_id,
+                user_message=question,
+            )
+
+            yield (f"data: {json.dumps({'type': 'token', 'data': error_message})}\n\n")
             await asyncio.sleep(0.01)
             yield (f"data: {json.dumps({'type': 'done'})}\n\n")
             return
@@ -92,13 +138,23 @@ class ChatService:
                 "chunk_index": result["chunk_index"],
                 "score": result["score"],
                 "page_number": result["page_number"],
+                "document_name": result.get("document_name"),
             }
             for result in search_result[:5]
         ]
 
-        # Stream answer tokens
-        for token in LLMService.stream_answer(messages):
-            yield (f"data: {json.dumps({'type': 'token', 'data': token})}\n\n")
+        full_answer = ""
+        try:
+            # Stream answer tokens
+            for token in LLMService.stream_answer(messages):
+                full_answer += token
+                yield (f"data: {json.dumps({'type': 'token', 'data': token})}\n\n")
+        finally:
+            conversation_service_instance.save_chat_exchange(
+                assistant_message=full_answer,
+                conversation_id=conversation_id,
+                user_message=question,
+            )
 
         # Send sources
         yield (f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n")

@@ -38,8 +38,8 @@ class LLMService:
         for msg in history[-10:]:
             messages.append(
                 {
-                    "role": msg.role,
-                    "content": msg.content,
+                    "role": msg["role"],
+                    "content": msg["content"],
                 }
             )
 
@@ -94,12 +94,13 @@ class LLMService:
                 """,
             }
         ]
-
+        print("history", history)
         for msg in history[-10:]:
+            print("role", msg["role"])
             messages.append(
                 {
-                    "role": msg.role,
-                    "content": msg.content,
+                    "role": msg["role"],
+                    "content": msg["content"],
                 }
             )
 

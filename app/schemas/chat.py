@@ -9,6 +9,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     app_id: str
     query: str
+    conversation_id: str = ""
     history: list[ChatMessage] = []
 
 

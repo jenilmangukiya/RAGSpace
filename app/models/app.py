@@ -32,3 +32,9 @@ class App(Base):
         back_populates="app",
         cascade="all, delete-orphan",
     )
+
+    conversations = relationship(
+        "Conversation",
+        back_populates="app",
+        cascade="all, delete-orphan",
+    )

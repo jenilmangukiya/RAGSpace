@@ -1,3 +1,4 @@
+from app.routes import conversations
 from app.routes import documents, apps, search, chat
 
 from fastapi import FastAPI, Depends
@@ -39,3 +40,6 @@ app.include_router(
 )
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+app.include_router(
+    conversations.router, prefix="/api/conversations", tags=["Conversations"]
+)
