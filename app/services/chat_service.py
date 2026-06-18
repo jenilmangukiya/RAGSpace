@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.services import conversation_service
 import asyncio
 import json
+import time
 from pymupdf.mupdf import pint_assign
 from alembic.command import history
 from app.schemas.chat import ChatMessage
@@ -83,7 +84,7 @@ class ChatService:
             "sources": sources,
         }
 
-    async def stream_chat(
+    def stream_chat(
         self,
         question: str,
         user_id: str,
@@ -121,7 +122,7 @@ class ChatService:
             )
 
             yield (f"data: {json.dumps({'type': 'token', 'data': error_message})}\n\n")
-            await asyncio.sleep(0.01)
+            time.sleep(0.01)
             yield (f"data: {json.dumps({'type': 'done'})}\n\n")
             return
 
