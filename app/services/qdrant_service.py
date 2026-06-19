@@ -1,4 +1,3 @@
-from rich import highlighter
 import uuid
 
 from qdrant_client.http.models import FilterSelector
@@ -12,7 +11,9 @@ MIN_SCORE = 0.5
 
 class QdrantService:
     @staticmethod
-    def upsert_chunks(chunks, vectors, user_id, app_id, document_id, document_name):
+    def upsert_chunks(
+        chunks, vectors, user_id, app_id, document_id, document_name, type
+    ):
         points = []
 
         for index, (chunk, vector) in enumerate(zip(chunks, vectors)):
@@ -28,6 +29,7 @@ class QdrantService:
                         "text": chunk["chunk_content"],
                         "page_number": chunk["page_number"],
                         "document_name": document_name,
+                        "type": type,
                     },
                 )
             )
@@ -64,6 +66,36 @@ class QdrantService:
 
         filtered = [point for point in results.points if point.score >= MIN_SCORE]
         return filtered
+
+    @staticmethod
+    def search_document_summary(
+        query_vector: list[float],
+        user_id: str,
+        app_id: str,
+    ):
+        results = qdrant.query_points(
+            collection_name="documents",
+            query=query_vector,
+            limit=5,
+            query_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="user_id",
+                        match=MatchValue(value=str(user_id)),
+                    ),
+                    FieldCondition(
+                        key="app_id",
+                        match=MatchValue(value=str(app_id)),
+                    ),
+                    FieldCondition(
+                        key="type",
+                        match=MatchValue(value="document_summary"),
+                    ),
+                ]
+            ),
+        )
+
+        return results.points
 
     @staticmethod
     def delete_document_chunks(

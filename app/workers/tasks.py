@@ -1,3 +1,4 @@
+from app.services.llm_service import LLMService
 from app.models import App
 from app.services.qdrant_service import QdrantService
 from app.services.embedding_service import EmbeddingService
@@ -34,7 +35,26 @@ async def process_document(
 
         local_pdf_path = StorageService.download_document(document.storage_path)
 
-        extracted_text = PDFService.extract_text(local_pdf_path)
+        extracted_text: list[dict] = PDFService.extract_text(local_pdf_path)
+
+        full_text = "\n\n".join(page["page_content"] for page in extracted_text)
+
+        summary_and_embedding: dict = LLMService.generate_document_summary(full_text)
+
+        QdrantService.upsert_chunks(
+            chunks=[
+                {
+                    "page_number": "Summary",
+                    "chunk_content": summary_and_embedding["summary"],
+                }
+            ],
+            vectors=[summary_and_embedding["summary_embedding"]],
+            user_id=app.user_id,
+            app_id=app.id,
+            document_id=document.id,
+            document_name=document.file_name,
+            type="document_summary",
+        )
 
         all_chunks = []
         for page in extracted_text:
@@ -59,6 +79,7 @@ async def process_document(
             app_id=app.id,
             document_id=document.id,
             document_name=document.file_name,
+            type="chunk",
         )
 
         document.status = "processed"

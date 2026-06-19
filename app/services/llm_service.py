@@ -1,3 +1,4 @@
+from app.services.embedding_service import EmbeddingService
 from app.schemas.chat import ChatMessage
 from app.integrations.openai import OpenAIClient
 
@@ -23,14 +24,15 @@ class LLMService:
             {
                 "role": "system",
                 "content": """
-                    You are a helpful assistant.
+                    You are an AI assistant with access to the user's uploaded documents.
 
-                    Answer ONLY using the provided context.
-
-                    If the answer is not present in the context, say:
-                    "I could not find that information in the uploaded documents."
-
-                    Maintain the conversation history to understand context.
+                    When answering:
+                    - Speak naturally.
+                    - Do not mention embeddings, vectors, retrieval, searchable summaries, or document chunks.
+                    - Act as if the uploaded documents are your knowledge source.
+                    - If the user asks what information you have, summarize the available knowledge in a helpful way.
+                    - If the uploaded documents contain relevant information, use it confidently.
+                    - Only say you don't know when the information truly does not exist in the provided documents.
                 """,
             },
         ]
@@ -94,9 +96,8 @@ class LLMService:
                 """,
             }
         ]
-        print("history", history)
+
         for msg in history[-10:]:
-            print("role", msg["role"])
             messages.append(
                 {
                     "role": msg["role"],
@@ -110,6 +111,75 @@ class LLMService:
                 "content": question,
             }
         )
+
+        response = OpenAIClient.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0,
+        )
+
+        return response.choices[0].message.content.strip()
+
+    @staticmethod
+    def generate_document_summary(text: str):
+        summary_source = text[:20000]
+
+        messages = [
+            {
+                "role": "system",
+                "content": """
+        Create a searchable summary.
+
+        Include:
+        - Main topic
+        - Key concepts
+        - Important entities
+        - Technologies
+        - Important facts
+
+        This summary will be used for document retrieval.
+        """,
+            },
+            {
+                "role": "user",
+                "content": summary_source,
+            },
+        ]
+
+        response = OpenAIClient.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0.5,
+        )
+
+        summary = response.choices[0].message.content.strip()
+
+        summary_embedding: list[float] = EmbeddingService.create_embedding(summary)
+
+        return {
+            "summary": summary,
+            "summary_embedding": summary_embedding,
+        }
+
+    @staticmethod
+    def classify_query(question: str):
+        messages = [
+            {
+                "role": "system",
+                "content": """
+                        Classify the user's query.
+
+                        Return ONLY one word:
+
+                        - "document"   → If the query is about the uploaded document.
+                        - "chat"       → If the query is a casual question.
+                    """,
+            },
+            {
+                "role": "user",
+                "content": question,
+            },
+        ]
 
         response = OpenAIClient.chat.completions.create(
             model="gpt-4o-mini",

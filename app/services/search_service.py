@@ -1,3 +1,4 @@
+from app.services.query_service import QueryService
 from app.services.embedding_service import (
     EmbeddingService,
 )
@@ -16,11 +17,21 @@ class SearchService:
     ):
         query_embedding = EmbeddingService.create_embedding(query)
 
-        results = QdrantService.search(
-            query_vector=query_embedding,
-            user_id=user_id,
-            app_id=app_id,
-        )
+        query_type = QueryService.classify_query(query)
+
+        if query_type == "document":
+            results = QdrantService.search_document_summary(
+                query_vector=query_embedding,
+                user_id=user_id,
+                app_id=app_id,
+            )
+
+        else:
+            results = QdrantService.search(
+                query_vector=query_embedding,
+                user_id=user_id,
+                app_id=app_id,
+            )
 
         return [
             {

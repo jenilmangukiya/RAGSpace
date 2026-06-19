@@ -111,7 +111,7 @@ class ConversationService:
                 content=assistant_message,
             ),
         ]
-        print(messages)
+
         self.db.add_all(messages)
         self.db.commit()
 
