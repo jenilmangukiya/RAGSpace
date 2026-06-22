@@ -1,5 +1,12 @@
-from app.routes import conversations
-from app.routes import documents, apps, search, chat
+from app.routes import (
+    documents,
+    apps,
+    search,
+    chat,
+    webhooks,
+    conversations,
+    billing,
+)
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,4 +49,11 @@ app.include_router(search.router, prefix="/api/search", tags=["Search"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(
     conversations.router, prefix="/api/conversations", tags=["Conversations"]
+)
+app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
+
+app.include_router(
+    webhooks.router,
+    prefix="/api/webhooks",
+    tags=["Webhooks"],
 )

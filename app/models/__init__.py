@@ -3,3 +3,4 @@ from .app import App
 from .document import Document
 from .conversation import Conversation
 from .message import Message
+from .subscription import Subscription
