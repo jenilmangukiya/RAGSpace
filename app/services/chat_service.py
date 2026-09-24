@@ -1,14 +1,15 @@
-from app.services.conversation_service import ConversationService
-from sqlalchemy.orm import Session
-from app.services import conversation_service
-import asyncio
 import json
+import logging
 import time
-from pymupdf.mupdf import pint_assign
-from alembic.command import history
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+
 from app.schemas.chat import ChatMessage
+from app.services.conversation_service import ConversationService
 from app.services.llm_service import LLMService
 from app.services.search_service import SearchService
+
+logger = logging.getLogger(__name__)
 
 
 class ChatService:
@@ -22,67 +23,74 @@ class ChatService:
         app_id: str,
         conversation_id: str,
     ):
-        conversation_service_instance = ConversationService(self.db)
+        try:
+            conversation_service_instance = ConversationService(self.db)
 
-        # Get chat History from DB
-        db_history = conversation_service_instance.get_conversation_latest_history(
-            conversation_id, user_id
-        )
-        history = [
-            {"role": message.role, "content": message.content} for message in db_history
-        ]
+            # Get chat History from DB
+            db_history = conversation_service_instance.get_conversation_latest_history(
+                conversation_id, user_id
+            )
+            history = [
+                {"role": message.role, "content": message.content} for message in db_history
+            ]
 
-        query = question
-        if history:
-            query = LLMService.rewrite_query(question=question, history=history)
+            query = question
+            if history:
+                query = LLMService.rewrite_query(question=question, history=history)
 
-        search_result = SearchService.search(
-            query=query,
-            user_id=user_id,
-            app_id=app_id,
-        )
-
-        if not search_result:
-            error_message = (
-                "I could not find any relevant information in the uploaded documents."
+            search_result = SearchService.search(
+                query=query,
+                user_id=user_id,
+                app_id=app_id,
             )
 
+            if not search_result:
+                error_message = (
+                    "I could not find any relevant information in the uploaded documents."
+                )
+
+                conversation_service_instance.save_chat_exchange(
+                    assistant_message=error_message,
+                    conversation_id=conversation_id,
+                    user_message=question,
+                )
+
+                return {
+                    "answer": error_message,
+                    "sources": [],
+                }
+
+            context = "\n\n".join(result["text"] for result in search_result[:5])
+
+            answer = LLMService.generate_answer(
+                question=question, context=context, history=history
+            )
+
+            sources = [
+                {
+                    "document_id": result["document_id"],
+                    "chunk_index": result["chunk_index"],
+                    "score": result["score"],
+                }
+                for result in search_result[:5]
+            ]
+
             conversation_service_instance.save_chat_exchange(
-                assistant_message=error_message,
+                assistant_message=answer,
                 conversation_id=conversation_id,
                 user_message=question,
             )
 
             return {
-                "answer": error_message,
-                "sources": [],
+                "answer": answer,
+                "sources": sources,
             }
-
-        context = "\n\n".join(result["text"] for result in search_result[:5])
-
-        answer = LLMService.generate_answer(
-            question=question, context=context, history=history
-        )
-
-        sources = [
-            {
-                "document_id": result["document_id"],
-                "chunk_index": result["chunk_index"],
-                "score": result["score"],
-            }
-            for result in search_result[:5]
-        ]
-
-        conversation_service_instance.save_chat_exchange(
-            assistant_message=answer,
-            conversation_id=conversation_id,
-            user_message=question,
-        )
-
-        return {
-            "answer": answer,
-            "sources": sources,
-        }
+        except Exception as e:
+            logger.exception("Error in chat service: %s", str(e))
+            raise HTTPException(
+                status_code=500,
+                detail="Something went wrong."
+            )
 
     def stream_chat(
         self,
@@ -93,72 +101,84 @@ class ChatService:
     ):
         conversation_service_instance = ConversationService(self.db)
 
-        # Get chat History from DB
-        db_history = conversation_service_instance.get_conversation_latest_history(
-            conversation_id, user_id
-        )
-        history = [
-            {"role": message.role, "content": message.content} for message in db_history
-        ]
-
-        query = question
-        if history:
-            query = LLMService.rewrite_query(question=question, history=history)
-
-        search_result = SearchService.search(
-            query=query,
-            user_id=user_id,
-            app_id=app_id,
-        )
-
-        if not search_result:
-            error_message = (
-                "I could not find any relevant information in the uploaded documents."
-            )
-            conversation_service_instance.save_chat_exchange(
-                assistant_message=error_message,
-                conversation_id=conversation_id,
-                user_message=question,
-            )
-
-            yield (f"data: {json.dumps({'type': 'token', 'data': error_message})}\n\n")
-            time.sleep(0.01)
-            yield (f"data: {json.dumps({'type': 'done'})}\n\n")
-            return
-
-        context = "\n\n".join(result["text"] for result in search_result[:5])
-
-        messages = LLMService.build_messages(
-            question=question,
-            history=history,
-            context=context,
-        )
-        sources = [
-            {
-                "document_id": result["document_id"],
-                "chunk_index": result["chunk_index"],
-                "score": result["score"],
-                "page_number": result["page_number"],
-                "document_name": result.get("document_name"),
-            }
-            for result in search_result[:5]
-        ]
-
-        full_answer = ""
         try:
-            # Stream answer tokens
-            for token in LLMService.stream_answer(messages):
-                full_answer += token
-                yield (f"data: {json.dumps({'type': 'token', 'data': token})}\n\n")
-        finally:
-            conversation_service_instance.save_chat_exchange(
-                assistant_message=full_answer,
-                conversation_id=conversation_id,
-                user_message=question,
+            # Get chat History from DB
+            db_history = conversation_service_instance.get_conversation_latest_history(
+                conversation_id, user_id
+            )
+            history = [
+                {"role": message.role, "content": message.content} for message in db_history
+            ]
+
+            query = question
+            if history:
+                query = LLMService.rewrite_query(question=question, history=history)
+
+            search_result = SearchService.search(
+                query=query,
+                user_id=user_id,
+                app_id=app_id,
             )
 
-        # Send sources
-        yield (f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n")
+            if not search_result:
+                error_message = (
+                    "I could not find any relevant information in the uploaded documents."
+                )
+                conversation_service_instance.save_chat_exchange(
+                    assistant_message=error_message,
+                    conversation_id=conversation_id,
+                    user_message=question,
+                )
 
-        # Send done event
-        yield (f"data: {json.dumps({'type': 'done'})}\n\n")
+                yield (f"data: {json.dumps({'type': 'token', 'data': error_message})}\n\n")
+                time.sleep(0.01)
+                yield (f"data: {json.dumps({'type': 'done'})}\n\n")
+                return
+
+            context = "\n\n".join(result["text"] for result in search_result[:5])
+
+            messages = LLMService.build_messages(
+                question=question,
+                history=history,
+                context=context,
+            )
+            sources = [
+                {
+                    "document_id": result["document_id"],
+                    "chunk_index": result["chunk_index"],
+                    "score": result["score"],
+                    "page_number": result["page_number"],
+                    "document_name": result.get("document_name"),
+                }
+                for result in search_result[:5]
+            ]
+
+            full_answer = ""
+            try:
+                # Stream answer tokens
+                for token in LLMService.stream_answer(messages):
+                    full_answer += token
+                    yield (f"data: {json.dumps({'type': 'token', 'data': token})}\n\n")
+            finally:
+                if full_answer:
+                    conversation_service_instance.save_chat_exchange(
+                        assistant_message=full_answer,
+                        conversation_id=conversation_id,
+                        user_message=question,
+                    )
+
+            # Send sources
+            yield (f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n")
+
+            # Send done event
+            yield (f"data: {json.dumps({'type': 'done'})}\n\n")
+
+        except Exception as e:
+            logger.exception("Error in stream_chat service: %s", str(e))
+            yield (f"data: {json.dumps({'type': 'token', 'data': 'Something went wrong.'})}\n\n")
+            time.sleep(0.01)
+            yield (f"data: {json.dumps({'type': 'error', 'message': 'Something went wrong.', 'data': 'Something went wrong.'})}\n\n")
+            yield (f"data: {json.dumps({'type': 'done'})}\n\n")
+
+
+
